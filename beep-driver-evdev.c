@@ -2,7 +2,8 @@
  * \brief implement the beep evdev driver
  * \author Copyright (C) 2000-2010 Johnathan Nightingale
  * \author Copyright (C) 2010-2013 Gerfried Fuchs
- * \author Copyright (C) 2019 Hans Ulrich Niedermann
+ * \author Copyright (C) 2019-2020 Hans Ulrich Niedermann
+ * \author Copyright (C) 2020 Bastian Krause
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -27,6 +28,7 @@
  */
 
 
+#include <stdbool.h>
 #include <stddef.h>
 
 #include <errno.h>
@@ -48,6 +50,12 @@
 
 
 #define LOG_MODULE "evdev"
+
+
+enum snd_api_type {
+                   SND_API_TONE,
+                   SND_API_BELL
+};
 
 
 static
@@ -77,14 +85,20 @@ bool driver_detect(beep_driver *driver, const char *console_device)
         LOG_VERBOSE("driver_detect %p %p",
                     (void *)driver, (const void *)console_device);
     }
+
+    bool device_open = false;
+
     if (console_device) {
         const int fd = open_checked_device(console_device);
         if (fd >= 0) {
             driver->device_fd = fd;
             driver->device_name = console_device;
-            return true;
+            device_open = true;
         }
     } else {
+        /* Make this a list of well-known device names when more
+         * well-known.device names become known to us.
+         */
         static
             const char *const default_name =
             "/dev/input/by-path/platform-pcspkr-event-spkr";
@@ -92,10 +106,39 @@ bool driver_detect(beep_driver *driver, const char *console_device)
         if (fd >= 0) {
             driver->device_fd = fd;
             driver->device_name = default_name;
-            return true;
+            device_open = true;
         }
     }
-    return false;
+
+    if (!device_open) {
+        return false;
+    }
+
+    unsigned long evbit = 0;
+    if (-1 == ioctl(driver->device_fd,
+                    EVIOCGBIT(EV_SND, sizeof(evbit)), &evbit)) {
+        LOG_VERBOSE("%d does not implement EVIOCGBIT",
+                    driver->device_fd);
+        return false;
+    }
+
+    enum snd_api_type snd_api;
+    if (evbit & (1 << SND_TONE)) {
+        snd_api = SND_API_TONE;
+        LOG_VERBOSE("found SND_TONE support for fd=%d",
+                    driver->device_fd);
+    } else if (evbit & (1 << SND_BELL)) {
+        snd_api = SND_API_BELL;
+        LOG_VERBOSE("falling back to SND_BELL support for fd=%d",
+                    driver->device_fd);
+    } else {
+        LOG_VERBOSE("fd=%d supports neither SND_TONE nor SND_BELL",
+                    driver->device_fd);
+        return false;
+    }
+
+    driver->device_flags = snd_api;
+    return true;
 }
 
 
@@ -124,8 +167,16 @@ void driver_begin_tone(beep_driver *driver, const uint16_t freq)
 
     memset(&e, 0, sizeof(e));
     e.type = EV_SND;
-    e.code = SND_TONE;
-    e.value = freq;
+    switch ((enum snd_api_type)(driver->device_flags)) {
+    case SND_API_TONE:
+        e.code = SND_TONE;
+        e.value = freq;
+        break;
+    case SND_API_BELL:
+        e.code = SND_BELL;
+        e.value = (0 == 0);
+        break;
+    }
 
     if (sizeof(e) != write(driver->device_fd, &e, sizeof(e))) {
 	/* If we cannot use the sound API, we cannot silence the sound either */
@@ -143,8 +194,16 @@ void driver_end_tone(beep_driver *driver)
 
     memset(&e, 0, sizeof(e));
     e.type = EV_SND;
-    e.code = SND_TONE;
-    e.value = 0;
+    switch ((enum snd_api_type)(driver->device_flags)) {
+    case SND_API_TONE:
+        e.code = SND_TONE;
+        e.value = 0;
+        break;
+    case SND_API_BELL:
+        e.code = SND_BELL;
+        e.value = (0 != 0);
+        break;
+    }
 
     if (sizeof(e) != write(driver->device_fd, &e, sizeof(e))) {
 	safe_error_exit("write EV_SND");
@@ -163,7 +222,8 @@ beep_driver driver_data =
      driver_begin_tone,
      driver_end_tone,
      0,
-     NULL
+     NULL,
+     0
     };
 
 

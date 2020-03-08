@@ -89,7 +89,8 @@ beep_driver driver_data =
      driver_begin_tone,
      driver_end_tone,
      0,
-     NULL
+     NULL,
+     0
     };
 
 

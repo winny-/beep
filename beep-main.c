@@ -529,9 +529,10 @@ int main(const int argc, char *const argv[])
         }
     }
 
-    LOG_VERBOSE("using %s driver (fd=%d, dev=%s)",
+    LOG_VERBOSE("using %s driver (fd=%d, dev=%s, flags=0x%x)",
                 driver->name,
-                driver->device_fd, driver->device_name);
+                driver->device_fd, driver->device_name,
+                driver->device_flags);
 
     /* At this time, we know what API to use on which device, and we do
      * not have to fall back onto printing '\a' any more.

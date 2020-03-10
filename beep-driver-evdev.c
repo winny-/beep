@@ -100,13 +100,20 @@ bool driver_detect(beep_driver *driver, const char *console_device)
          * well-known.device names become known to us.
          */
         static
-            const char *const default_name =
-            "/dev/input/by-path/platform-pcspkr-event-spkr";
-        const int fd = open_checked_device(default_name);
-        if (fd >= 0) {
-            driver->device_fd = fd;
-            driver->device_name = default_name;
-            device_open = true;
+            const char *const default_names[] =
+            {
+             "/dev/input/by-path/platform-pcspkr-event-spkr",
+             "/dev/input/by-path/platform-gpio-beeper-event",
+             NULL
+            };
+        for (unsigned int i=0; default_names[i]; ++i) {
+            const int fd = open_checked_device(default_names[i]);
+            if (fd >= 0) {
+                driver->device_fd = fd;
+                driver->device_name = default_names[i];
+                device_open = true;
+                break;
+            }
         }
     }
 

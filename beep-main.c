@@ -365,41 +365,6 @@ int main(const int argc, char *const argv[])
 {
     log_init(argc, argv);
 
-    /* Bail out if running setuid or setgid.
-     *
-     * It is near impossible to make beep setuid-safe:
-     *
-     *   * We open files for writing, and may even write to them.
-     *
-     *   * Checking the device file with realpath leaks information.
-     *
-     * So we refuse running setuid or setgid.
-     */
-    if ((getuid() != geteuid()) || (getgid() != getegid())) {
-        log_error("Running setuid or setgid, "
-                  "which is not supported for security reasons.");
-        log_error("Set up permissions for the pcspkr evdev device file instead.");
-        exit(EXIT_FAILURE);
-    }
-
-    /* Bail out if running as root under sudo.
-     *
-     * For the reasoning, see the setuid comment above.
-     */
-    if ((getuid() == 0) || (geteuid() == 0) ||
-        (getgid() == 0) || (getegid() == 0)) {
-        log_verbose("Running with root permissions. "
-                    "Checking for SUDO_* in environment.");
-        if (getenv("SUDO_COMMAND") || getenv("SUDO_USER") ||
-            getenv("SUDO_UID") || getenv("SUDO_GID")) {
-            log_error("Running as root under sudo, "
-                      "which is not supported for security reasons.");
-            log_error("Set up permissions for the pcspkr evdev device "
-                      "file and run as non-root user instead.");
-            exit(EXIT_FAILURE);
-        }
-    }
-
     /* Parse command line */
     beep_parms_T *parms = (beep_parms_T *)malloc(sizeof(beep_parms_T));
     if (NULL == parms) {

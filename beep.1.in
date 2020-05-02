@@ -124,9 +124,17 @@ Uses the console API, and the kernel insists you are root or own the TTY.
 .IP "\fB/dev/vc/0\fR" 4
 Uses the console API, and the kernel insists you are root or own the TTY.
 .PP
+This version of
 .B beep
-does not support running as setuid root or via
+DOES support running as setuid root or via
 .BR "sudo" "(1)" .
+This version of
+.B beep
+does not baby its users, however, you may want to read
+.B @pkgdocdir@/PERMISSIONS.md
+on how to reduce the impact of
+.B beep
+vulnerabilites.
 .PP
 For non\-root uses, the system administrator can set up a
 .BR udev "(7)"

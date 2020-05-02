@@ -443,53 +443,6 @@ int main(const int argc, char *const argv[])
 {
     log_init(argc, argv);
 
-    /* Check for setuid and/or sudo
-     *
-     * Old beep (pre-1.4) mostly needed to run as root in order to use
-     * the console API to the PC speaker.  Two popular ways to achieve
-     * that were to make the beep executable setuid-root and using
-     * sudo and a shell alias to run beep as root.
-     *
-     * New beep (1.4 and later) uses the evdev API to the PC speaker
-     * which does not require being root at all.
-     *
-     * As it is near impossible to make beep safe for running with
-     * elevated priviledges (beep opens files for writing, and usually
-     * even writes to them, and checking the device file with realpath
-     * leaks information), we now check for these two popular old
-     * permission setups being carried over to a new beep installation
-     * by mistake.
-     *
-     * These checks are not security measures for future attack
-     * scenarios.  These are checks are for detecting remainders of
-     * old setups which have no place in a contemporary system.
-     */
-
-    /* Bail out if running setuid or setgid.
-     */
-    if ((getuid() != geteuid()) || (getgid() != getegid())) {
-        log_error("Running setuid or setgid, "
-                  "which is not supported for security reasons.");
-        log_error("Set up permissions for the pcspkr evdev device file instead.");
-        exit(EXIT_FAILURE);
-    }
-
-    /* Bail out if running as root under sudo.
-     */
-    if ((getuid() == 0) || (geteuid() == 0) ||
-        (getgid() == 0) || (getegid() == 0)) {
-        log_verbose("Running with root permissions. "
-                    "Checking for SUDO_* in environment.");
-        if (getenv("SUDO_COMMAND") || getenv("SUDO_USER") ||
-            getenv("SUDO_UID") || getenv("SUDO_GID")) {
-            log_error("Running as root under sudo, "
-                      "which is not supported for security reasons.");
-            log_error("Set up permissions for the pcspkr evdev device "
-                      "file and run as non-root user instead.");
-            exit(EXIT_FAILURE);
-        }
-    }
-
     /* Parse command line */
     beep_parms_T *parms = (beep_parms_T *)malloc(sizeof(beep_parms_T));
     if (NULL == parms) {
